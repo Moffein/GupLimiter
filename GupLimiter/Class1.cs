@@ -16,10 +16,11 @@ namespace R2API.Utils
 
 namespace GupLimiter
 {
-    [BepInPlugin("com.Moffein.GupLimiter", "GupLimiter", "1.0.0")]
+    [BepInPlugin("com.Moffein.GupLimiter", "GupLimiter", "1.0.1")]
     public class GupLimiter : BaseUnityPlugin
     {
         public static bool aggressive = false;
+        public static bool ignorePlayerTeam = true;
 
         private static BodyIndex gupIndex;
         private static BodyIndex geepIndex;
@@ -27,6 +28,8 @@ namespace GupLimiter
         public void Awake()
         {
             aggressive = Config.Bind("General", "Aggressive Limiting", false, "Count Gups as 4 enemies instead of 2.").Value;
+            ignorePlayerTeam = Config.Bind("General", "Ignore Player Team", true, "Don't apply changes to Gups/Geeps on the Player team.").Value;
+
             IL.RoR2.MasterSummon.Perform += (il) =>
             {
                 ILCursor c = new ILCursor(il);
@@ -36,18 +39,21 @@ namespace GupLimiter
                 c.Emit(OpCodes.Ldloc_0);    //teamIndex
                 c.EmitDelegate<Func<int, MasterSummon, TeamIndex, int>>((memberCount, self, teamIndex) =>
                 {
-                    var teamMembers = TeamComponent.GetTeamMembers(teamIndex);
-                    foreach (TeamComponent tc in teamMembers)
+                    if (!(ignorePlayerTeam && teamIndex == TeamIndex.Player))
                     {
-                        if (tc.body)
+                        var teamMembers = TeamComponent.GetTeamMembers(teamIndex);
+                        foreach (TeamComponent tc in teamMembers)
                         {
-                            if (tc.body.bodyIndex == geepIndex)
+                            if (tc.body)
                             {
-                                memberCount++;
-                            }
-                            else if(tc.body.bodyIndex == gupIndex)
-                            {
-                                memberCount += aggressive ? 3 : 1;
+                                if (tc.body.bodyIndex == geepIndex)
+                                {
+                                    memberCount++;
+                                }
+                                else if (tc.body.bodyIndex == gupIndex)
+                                {
+                                    memberCount += aggressive ? 3 : 1;
+                                }
                             }
                         }
                     }
